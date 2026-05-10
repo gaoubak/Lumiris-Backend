@@ -25,6 +25,11 @@ spring:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:lumiris-secret-key-change-in-production-min-256-bits}
+    expiration: 86400000
+
 server:
   error:
     include-message: always

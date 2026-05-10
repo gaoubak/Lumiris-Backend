@@ -177,6 +177,27 @@ This will:
 
 ---
 
+## 🔐 Seed Accounts
+
+The database is pre-seeded with one account per role for local development:
+
+| Role | Email | Password |
+|------|-------|----------|
+| `ADMIN` | `admin@lumiris.com` | `admin123` |
+| `ARTISAN` | `artisan@lumiris.com` | `artisan123` |
+| `CLIENT` | `client@lumiris.com` | `client123` |
+| `REPAIRER` | `repairer@lumiris.com` | `repairer123` |
+
+To get a JWT token:
+
+```bash
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@lumiris.com","password":"admin123"}'
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
