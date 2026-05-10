@@ -166,6 +166,22 @@ redis-ping: ## Test Redis connection
 redis-memory: ## Show Redis memory usage
 	@$(EXEC) redis redis-cli INFO memory | grep "used_memory_human"
 
+## —— 📮 Postman ——————————————————————————————————————————————
+postman-import: ## Import Postman collection + all environments
+	@echo "📮 Importing Postman collection and environments..."
+	@postman collection import postman/lumiris.postman_collection.json 2>/dev/null || \
+		echo "⚠️  Postman CLI not found. Import manually: postman/lumiris.postman_collection.json"
+	@for env in postman/lumiris.*.postman_environment.json; do \
+		postman environment import $$env 2>/dev/null || true; \
+	done
+	@echo "✅ Done. Or drag & drop the files into Postman."
+
+postman-login-dev: ## Quick login as admin and print token (dev env)
+	@echo "🔑 Logging in as admin (dev)..."
+	@curl -s -X POST http://localhost:8081/api/auth/login \
+		-H "Content-Type: application/json" \
+		-d '{"email":"admin@lumiris.com","password":"admin123"}' | python3 -m json.tool
+
 ## —— 🔑 Security —————————————————————————————————————————————
 audit: ## Check for security vulnerabilities in dependencies
 	@echo "🔐 Running security audit..."
