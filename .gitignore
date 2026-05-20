@@ -35,3 +35,7 @@ build/
 # Environment variables
 .env.local
 .env
+
+# Local dev config (contains credentials)
+application-local.yaml
+src/main/resources/application-local.yaml
