@@ -1,3 +1,4 @@
+
 # Lumiris Backend API
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.5-6DB33F.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
