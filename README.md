@@ -119,61 +119,120 @@ Client (Artisan Dashboard / Consumer Scan)
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Repo layout (3 sibling repos)
 
-- Docker Desktop ([Download](https://www.docker.com/products/docker-desktop))
-- Java 21+
-- Maven (or use `./mvnw`)
-
-### Step 1: Clone the Repository
-
-```bash
-git clone <repo-url>
-cd lumiris-backend
+```
+~/Dev/Lumiris/
+├── Lumiris-Front/     # Bun + Turbo monorepo (4 Next.js apps)
+├── Lumiris-Backend/   # ← this repo
+└── Lumiris-Infra/     # Docker stack (Postgres, Redis, MinIO, Traefik, monitoring)
 ```
 
-### Step 2: Configure Environment
+The local infrastructure (Postgres, Redis, pgAdmin, MinIO, Mailhog, Traefik, monitoring) has moved to **`../Lumiris-Infra/`**. This repo only ships the Spring Boot app; it expects the datastores to already be running.
+
+### Prerequisites
+
+- Java 21+
+- Maven (or use `./mvnw`)
+- The Lumiris-Infra stack — see `../Lumiris-Infra/docs/LOCAL.md` for prerequisites (Docker, mkcert, tmux, …)
+
+### Step 1: Boot the local infrastructure
 
 ```bash
+cd ../Lumiris-Infra
+make check          # one-shot prereq sanity
+make setup          # /etc/hosts + mkcert + .env
+make up             # Postgres + Redis + MinIO + Mailhog + Traefik
+```
+
+Or — to start infra + backend + fronts in one command (tmux session) :
+
+```bash
+cd ../Lumiris-Infra && make all-up
+tmux attach -t lumiris
+```
+
+### Step 2: Configure backend environment
+
+```bash
+cd ../Lumiris-Backend
 cp .env.example .env
 ```
 
-Edit `.env` with your values:
+The defaults in `.env.example` match `../Lumiris-Infra/local/.env`. Full reference:
 
-```env
-# Database
-SPRING_DATASOURCE_USERNAME=kader
-SPRING_DATASOURCE_PASSWORD=
+| Variable | Default | Notes |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/lumiris` | Postgres JDBC URL |
+| `SPRING_DATASOURCE_USERNAME` | `lumiris` | DB user |
+| `SPRING_DATASOURCE_PASSWORD` | `lumiris_local_dev_only` | DB password |
+| `SPRING_DATA_REDIS_HOST` | `localhost` | Redis host |
+| `SPRING_DATA_REDIS_PORT` | `6379` | Redis port |
+| `SPRING_DATA_REDIS_PASSWORD` | `lumiris_local_dev_only` | Redis password (set on `redis-server --requirepass`) |
+| `SPRING_DATA_REDIS_SSL` | `false` | Set `true` in prod / Cloudflare R2 etc. |
+| `STORAGE_S3_ENDPOINT` | `http://localhost:9000` | MinIO endpoint (S3 wire-protocol) |
+| `STORAGE_S3_REGION` | `eu-central-1` | Region label (free-form for MinIO) |
+| `STORAGE_S3_ACCESS_KEY_ID` | `lumiris_app` | MinIO app credentials |
+| `STORAGE_S3_SECRET_ACCESS_KEY` | `lumiris_app_secret_dev_only` | MinIO app credentials |
+| `STORAGE_S3_PATH_STYLE` | `true` | Path-style required for MinIO |
+| `STORAGE_S3_BUCKET_UPLOADS` | `lumiris-uploads` | User uploads bucket |
+| `STORAGE_S3_BUCKET_ASSETS` | `lumiris-assets` | Static assets bucket |
+| `STORAGE_S3_BUCKET_BACKUPS` | `lumiris-backups` | Backups bucket |
+| `MAIL_HOST` | `localhost` | SMTP host (Mailhog) |
+| `MAIL_PORT` | `1025` | SMTP port |
+| `JWT_SECRET` | (placeholder) | Must be ≥ 256 bits |
+| `OPENAI_API_KEY` | `sk-fake-…` | Optional, Spring AI fallback |
+| `CORS_ALLOWED_ORIGINS` | `https://lumiris.local,…` | Comma-separated origins |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | otel-collector HTTP receiver |
+| `OTEL_SAMPLING` | `1.0` | Trace sampling probability |
 
-# Redis
-SPRING_DATA_REDIS_HOST=localhost
+> **No AWS dependency.** Object storage uses the official MinIO Java SDK (`io.minio:minio`), which speaks the S3 wire protocol but does not depend on any Amazon library. The same client targets MinIO locally and Cloudflare R2 in production.
 
-# OpenAI (for PDF document analysis)
-OPENAI_API_KEY=sk-your-key-here
-
-# CORS (your frontend URL)
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-```
-
-### Step 3: Start Development Environment
+### Step 3: Run Spring Boot
 
 ```bash
-make dev
+./mvnw spring-boot:run
 ```
 
-This will:
-- Start PostgreSQL, Redis and pgAdmin in Docker
-- Launch Spring Boot locally with **hot reload**
-- Run Flyway migrations automatically
+Hot reload is on via Spring DevTools. The backend is then reachable both directly (`http://localhost:8080`) and via Traefik (`https://api.lumiris.local`).
 
 ### Step 4: Verify Everything Works
 
-| URL | Service |
-|-----|---------|
-| `http://localhost:8081/swagger-ui/index.html` | Swagger UI (dev + hot reload) |
-| `http://localhost:8080/swagger-ui/index.html` | Swagger UI (prod Docker) |
-| `http://localhost:5050` | pgAdmin (admin@lumiris.com / admin) |
-| `http://localhost:8081/actuator/health` | Health check |
+| URL                                                | Service                                  |
+| -------------------------------------------------- | ---------------------------------------- |
+| `http://localhost:8080/actuator/health`            | Aggregate health (direct)                |
+| `http://localhost:8080/actuator/health/readiness`  | Readiness probe (db + redis + storage)   |
+| `http://localhost:8080/actuator/health/liveness`   | Liveness probe (ping + disk)             |
+| `http://localhost:8080/actuator/prometheus`        | Prometheus scrape endpoint               |
+| `https://api.lumiris.local/actuator/health`        | Aggregate health (via Traefik)           |
+| `http://localhost:8080/swagger-ui/index.html`      | Swagger UI                               |
+| `https://pgadmin.lumiris.local`                    | pgAdmin (`make up-tools` in Infra repo)  |
+
+---
+
+## 🌐 Endpoints
+
+Public (no auth) :
+
+- `POST /api/auth/login` — exchange credentials for a JWT
+- `POST /api/telemetry/web-vitals` — Web Vitals ingestion (rate-limited 100 req/min/IP, no auth)
+- `GET  /actuator/health` / `health/readiness` / `health/liveness`
+- `GET  /actuator/prometheus` — Prometheus metrics (Micrometer + OTLP)
+
+JWT-protected :
+
+- `POST /api/storage/upload-url` — returns a presigned PUT URL (15 min TTL) for the requested bucket alias (`uploads` / `assets` / `backups`)
+- `GET  /api/storage/download-url?bucket=…&key=…` — returns a presigned GET URL (1 h TTL)
+
+### Health composition
+
+`/actuator/health/readiness` aggregates :
+
+- `db` — Hikari datasource probe
+- `redis` — Lettuce `PING`
+- `storage` — MinIO `bucketExists()` on the `uploads` bucket, with `endpoint` + `latencyMs` in details
+
+`/actuator/health/liveness` aggregates `ping` + `diskSpace`.
 
 ---
 
