@@ -4,13 +4,15 @@ ifneq ("$(wildcard .env.local)", "")
 endif
 
 # Variables
+# NOTE: all `mvn*` targets in this file run mvnw NATIVELY (host JDK), not inside
+# the `app` container. The container is only used by docker-compose start/stop/ssh.
+# This matches Lumiris-Infra/all-up.sh which runs `./mvnw spring-boot:run` on the host.
 DC            := docker compose
 EXEC          := $(DC) exec -T
 EXEC_IT       := $(DC) exec
 APP           := $(EXEC) app
 APP_IT        := $(EXEC_IT) app
 MVN           := ./mvnw
-MAVEN         := $(APP) ./mvnw
 
 .DEFAULT_GOAL := help
 .PHONY: help
@@ -176,9 +178,10 @@ postman-import: ## Import Postman collection + all environments
 	done
 	@echo "✅ Done. Or drag & drop the files into Postman."
 
-postman-login-dev: ## Quick login as admin and print token (dev env)
-	@echo "🔑 Logging in as admin (dev)..."
-	@curl -s -X POST http://localhost:8081/api/auth/login \
+API_PORT ?= 8080
+postman-login-dev: ## Quick login as admin and print token (dev env, API_PORT=8080)
+	@echo "🔑 Logging in as admin (dev) on port $(API_PORT)..."
+	@curl -s -X POST http://localhost:$(API_PORT)/api/auth/login \
 		-H "Content-Type: application/json" \
 		-d '{"email":"admin@lumiris.com","password":"admin123"}' | python3 -m json.tool
 

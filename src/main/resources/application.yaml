@@ -9,8 +9,27 @@ spring:
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST}
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      ssl:
+        enabled: ${SPRING_DATA_REDIS_SSL:false}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
   ai:
     openai:
@@ -29,6 +48,47 @@ security:
   jwt:
     secret: ${JWT_SECRET:lumiris-secret-key-change-in-production-min-256-bits}
     expiration: 86400000
+
+storage:
+  s3:
+    endpoint: ${STORAGE_S3_ENDPOINT:http://localhost:9000}
+    region: ${STORAGE_S3_REGION:eu-central-1}
+    access-key-id: ${STORAGE_S3_ACCESS_KEY_ID:}
+    secret-access-key: ${STORAGE_S3_SECRET_ACCESS_KEY:}
+    path-style-access: ${STORAGE_S3_PATH_STYLE:true}
+    buckets:
+      uploads: ${STORAGE_S3_BUCKET_UPLOADS:lumiris-uploads}
+      assets: ${STORAGE_S3_BUCKET_ASSETS:lumiris-assets}
+      backups: ${STORAGE_S3_BUCKET_BACKUPS:lumiris-backups}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+      group:
+        readiness:
+          include: db,redis,storage
+        liveness:
+          include: ping,diskSpace
+  metrics:
+    tags:
+      application: lumiris-api
+      env: ${SPRING_PROFILES_ACTIVE:dev}
+  tracing:
+    sampling:
+      probability: ${OTEL_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+    metrics:
+      export:
+        url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
 
 server:
   error:
