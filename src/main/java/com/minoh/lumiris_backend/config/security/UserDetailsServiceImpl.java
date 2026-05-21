@@ -1,4 +1,4 @@
-package com.minoh.lumiris_backend.security;
+package com.minoh.lumiris_backend.config.security;
 
 import com.minoh.lumiris_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

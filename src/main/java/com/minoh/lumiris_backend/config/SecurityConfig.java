@@ -1,6 +1,6 @@
 package com.minoh.lumiris_backend.config;
 
-import com.minoh.lumiris_backend.security.JwtAuthFilter;
+import com.minoh.lumiris_backend.config.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package com.minoh.lumiris_backend.security;
+package com.minoh.lumiris_backend.config.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
