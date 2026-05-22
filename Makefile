@@ -56,17 +56,8 @@ logs: ## Show app container logs (ctrl+c to exit)
 logs-postgres: ## Show PostgreSQL container logs
 	@$(DC) logs -f postgres
 
-logs-redis: ## Show Redis container logs
-	@$(DC) logs -f redis
-
-ssh: ## SSH into app container
-	@$(APP_IT) sh
-
 ssh-postgres: ## SSH into PostgreSQL container
 	@$(EXEC_IT) postgres sh
-
-ssh-redis: ## SSH into Redis container
-	@$(EXEC_IT) redis sh
 
 ## —— ☕ Maven ————————————————————————————————————————————————
 install: ## Install Maven dependencies
@@ -145,27 +136,6 @@ spotbugs: ## Run SpotBugs static analysis
 
 quality: checkstyle spotbugs test ## Run all quality checks
 
-## —— 🔴 Redis ————————————————————————————————————————————————
-redis-cli: ## Access Redis CLI
-	@$(EXEC_IT) redis redis-cli
-
-redis-flush: ## Flush all Redis data (CAUTION!)
-	@echo "⚠️  Flushing all Redis data..."
-	@$(EXEC) redis redis-cli FLUSHALL
-	@echo "✅ Redis flushed"
-
-redis-keys: ## Show all Redis keys
-	@$(EXEC) redis redis-cli KEYS "*"
-
-redis-monitor: ## Monitor Redis commands in real-time
-	@$(EXEC_IT) redis redis-cli MONITOR
-
-redis-ping: ## Test Redis connection
-	@$(EXEC) redis redis-cli PING
-
-redis-memory: ## Show Redis memory usage
-	@$(EXEC) redis redis-cli INFO memory | grep "used_memory_human"
-
 ## —— 📮 Postman ——————————————————————————————————————————————
 postman-import: ## Import Postman collection + all environments
 	@echo "📮 Importing Postman collection and environments..."
@@ -196,9 +166,6 @@ info: ## Show Java and Maven versions
 status: ## Show Docker and application status
 	@echo "📊 Docker Status:"
 	@$(DC) ps
-	@echo ""
-	@echo "🔴 Redis Status:"
-	@$(EXEC) redis redis-cli PING || echo "❌ Redis not responding"
 
 ## —— 🚀 Quick Setup ——————————————————————————————————————————
 dev: ## Start all containers with hot reload (Docker dev profile)

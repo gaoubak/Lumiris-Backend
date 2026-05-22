@@ -47,9 +47,7 @@ A **DPP** is a digital record attached to a physical product that contains all i
 - **DPP Management**: Create, update and publish product passports
 - **ESPR Compliance**: Built to meet EU regulation requirements
 - **QR Code Generation**: Each product gets a scannable passport
-- **OAuth2 Authentication**: Secure login for artisans
-- **AI Document Analysis**: Extract product data from PDF documents via Spring AI + OpenAI
-- **Session Management**: Redis-backed persistent sessions
+- **JWT Authentication**: Stateless token-based auth
 - **API Documentation**: Full Swagger / OpenAPI spec
 
 ---
@@ -61,32 +59,24 @@ A **DPP** is a digital record attached to a physical product that contains all i
 ```
 Client (Artisan Dashboard / Consumer Scan)
                 ↓
-    Spring Security (OAuth2 / Session)
+    Spring Security (JWT / Stateless)
                 ↓
         REST Controller
                 ↓
         Service Layer
                 ↓
-        ├→ PostgreSQL (JPA / Hibernate + Flyway)
-        ├→ Redis (Session store)
-        └→ OpenAI API (Spring AI — PDF & document analysis)
+        └→ PostgreSQL (JPA / Hibernate + Flyway)
 ```
 
 ### Key Architectural Decisions:
 
-1. **Spring Security + OAuth2**: Authentication via external providers (Google, etc.)
-   - **Why?** No password management, secure by default for artisans
+1. **Spring Security + JWT**: Stateless token-based authentication
+   - **Why?** No server-side session state, scales horizontally
 
 2. **Flyway Migrations**: Versioned database schema
    - **Why?** DPP data models evolve with ESPR regulation — migrations must be auditable
 
-3. **Redis Sessions**: Persistent sessions across restarts
-   - **Why?** Stateless app, sessions survive container restarts in production
-
-4. **Spring AI + OpenAI**: PDF document reading and data extraction
-   - **Why?** Artisans can upload existing product documents and auto-fill passport fields
-
-5. **ESPR Compliance Layer**: Business rules enforcing regulation requirements
+3. **ESPR Compliance Layer**: Business rules enforcing regulation requirements
    - **Why?** The EU ESPR regulation mandates specific data fields and formats for DPPs
 
 ---
@@ -96,8 +86,7 @@ Client (Artisan Dashboard / Consumer Scan)
 ### Backend
 - **Spring Boot 3.4.5**: Main framework
 - **Java 21**: LTS version
-- **Spring Security + OAuth2**: Authentication & authorization
-- **Spring AI 1.0.0**: OpenAI integration & PDF document reader
+- **Spring Security + JWT (JJWT 0.12.6)**: Authentication & authorization
 - **Spring Validation**: Input validation
 
 ### Database
@@ -106,7 +95,6 @@ Client (Artisan Dashboard / Consumer Scan)
 - **Hibernate / JPA**: ORM
 
 ### Infrastructure
-- **Redis 7**: Session storage
 - **Docker + Docker Compose**: Containerization
 - **pgAdmin 4**: Database management UI
 
@@ -143,38 +131,32 @@ Edit `.env` with your values:
 
 ```env
 # Database
-SPRING_DATASOURCE_USERNAME=kader
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/lumiris
+SPRING_DATASOURCE_USERNAME=
 SPRING_DATASOURCE_PASSWORD=
-
-# Redis
-SPRING_DATA_REDIS_HOST=localhost
-
-# OpenAI (for PDF document analysis)
-OPENAI_API_KEY=sk-your-key-here
 
 # CORS (your frontend URL)
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# JWT
+JWT_SECRET=
 ```
 
 ### Step 3: Start Development Environment
 
 ```bash
-make dev
+make start
 ```
 
-This will:
-- Start PostgreSQL, Redis and pgAdmin in Docker
-- Launch Spring Boot locally with **hot reload**
-- Run Flyway migrations automatically
+This will start PostgreSQL and pgAdmin in Docker. Flyway migrations run automatically on first app startup.
 
 ### Step 4: Verify Everything Works
 
 | URL | Service |
 |-----|---------|
-| `http://localhost:8081/swagger-ui/index.html` | Swagger UI (dev + hot reload) |
-| `http://localhost:8080/swagger-ui/index.html` | Swagger UI (prod Docker) |
+| `http://localhost:8080/swagger-ui/index.html` | Swagger UI |
 | `http://localhost:5050` | pgAdmin (admin@lumiris.com / admin) |
-| `http://localhost:8081/actuator/health` | Health check |
+| `http://localhost:8080/actuator/health` | Health check |
 
 ---
 
@@ -192,7 +174,7 @@ The database is pre-seeded with one account per role for local development:
 To get a JWT token:
 
 ```bash
-curl -X POST http://localhost:8081/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@lumiris.com","password":"admin123"}'
 ```
@@ -233,10 +215,10 @@ lumiris-backend/
 make help               # Show all available commands
 
 # Docker
-make dev                # Start full dev environment (hot reload)
-make up                 # Build and start production containers
-make down               # Stop all containers
-make logs               # Follow app logs
+make start              # Start containers in background
+make up                 # Build and start containers
+make down               # Stop and remove containers
+make logs-postgres      # Follow PostgreSQL logs
 make ps                 # Show running containers
 
 # Database
@@ -251,14 +233,10 @@ make test-unit          # Run unit tests only
 make test-integration   # Run integration tests (Testcontainers)
 make test-coverage      # Run tests with HTML coverage report
 
-# Redis
-make redis-cli          # Open Redis CLI
-make redis-flush        # Flush all Redis data
-make redis-keys         # Show all Redis keys
-
-# Utilities
-make ssh                # SSH into app container
-make clean              # Remove containers + volumes + build artifacts
+# Build
+make compile            # Compile source code
+make package            # Build JAR (skip tests)
+make clean              # Clean build artifacts
 ```
 
 ### Adding a New DPP Field (ESPR Compliance)
@@ -309,9 +287,8 @@ Integration tests use **Testcontainers** — a real PostgreSQL instance spins up
 
 ## 📚 API Documentation
 
-- **Swagger UI** (dev): `http://localhost:8081/swagger-ui/index.html`
-- **Swagger UI** (prod): `http://localhost:8080/swagger-ui/index.html`
-- **OpenAPI JSON**: `http://localhost:8081/v3/api-docs`
+- **Swagger UI**: `http://localhost:8080/swagger-ui/index.html`
+- **OpenAPI JSON**: `http://localhost:8080/v3/api-docs`
 
 ---
 
@@ -334,15 +311,12 @@ Integration tests use **Testcontainers** — a real PostgreSQL instance spins up
 
 | Task | Command |
 |------|---------|
-| Start dev (hot reload) | `make dev` |
-| Start production | `make up` |
-| Run tests | `make test` |
-| View API docs | `http://localhost:8081/swagger-ui/index.html` |
-| Open database UI | `http://localhost:5050` |
-| SSH into container | `make ssh` |
-| View logs | `make logs` |
-| Reset database | `make db-reset` |
+| Start containers | `make start` |
 | Stop everything | `make down` |
+| Run tests | `make test` |
+| View API docs | `http://localhost:8080/swagger-ui/index.html` |
+| Open database UI | `http://localhost:5050` |
+| Reset database | `make db-reset` |
 
 ---
 
