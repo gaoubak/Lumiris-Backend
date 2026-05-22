@@ -1,6 +1,6 @@
 package com.minoh.lumiris_backend.controller;
 
-import com.minoh.lumiris_backend.security.JwtService;
+import com.minoh.lumiris_backend.config.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;

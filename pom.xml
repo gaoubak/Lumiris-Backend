@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.5</version>
+		<version>4.0.6</version>
 		<relativePath/>
 	</parent>
 	<groupId>com.minoh</groupId>
@@ -123,6 +123,11 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-test-autoconfigure</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
@@ -135,6 +140,11 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -175,6 +185,18 @@
 							<artifactId>lombok</artifactId>
 						</path>
 					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<configuration>
+					<!--suppress UnresolvedMavenProperty -->
+					<url>${env.SPRING_DATASOURCE_URL}</url>
+					<!--suppress UnresolvedMavenProperty -->
+					<user>${env.SPRING_DATASOURCE_USERNAME}</user>
+					<!--suppress UnresolvedMavenProperty -->
+					<password>${env.SPRING_DATASOURCE_PASSWORD}</password>
 				</configuration>
 			</plugin>
 		</plugins>

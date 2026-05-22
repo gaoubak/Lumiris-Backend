@@ -3,218 +3,108 @@ ifneq ("$(wildcard .env.local)", "")
 	include .env.local
 endif
 
-# Variables
-DC            := docker compose
-EXEC          := $(DC) exec -T
-EXEC_IT       := $(DC) exec
-APP           := $(EXEC) app
-APP_IT        := $(EXEC_IT) app
-MVN           := ./mvnw
-MAVEN         := $(APP) ./mvnw
+DC  := docker compose
+MVN := ./mvnw
+
+export SPRING_DATASOURCE_URL
+export SPRING_DATASOURCE_USERNAME
+export SPRING_DATASOURCE_PASSWORD
+export CORS_ALLOWED_ORIGINS
+export JWT_SECRET
 
 .DEFAULT_GOAL := help
-.PHONY: help
+.PHONY: help start stop down fresh logs run mvn maven flyway test postman
 
-## —— 🎯 Main Commands ——————————————————————————————————————
-help: ## Shows this help message
-	@echo "\033[33mUsage:\033[0m"
-	@echo "  make [command]"
+help:
+	@echo "Usage: make <command>"
 	@echo ""
-	@echo "\033[33mAvailable commands:\033[0m"
-	@grep -E '(^[a-zA-Z0-9_-]+:.*?##.*$$)|(^##)' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[32m%-30s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m##/[33m/'
+	@echo "  Docker"
+	@echo "    start     Start containers in background"
+	@echo "    stop      Stop containers without removing them"
+	@echo "    down      Stop and remove containers"
+	@echo "    fresh     Full reset: remove containers + volumes, then restart"
+	@echo "    logs      Follow PostgreSQL logs"
+	@echo ""
+	@echo "  App"
+	@echo "    run           Start the Spring Boot application"
+	@echo "    mvn <args>    Run any Maven command with .env loaded"
+	@echo "                  ex: make mvn spring-boot:run"
+	@echo "                  ex: make mvn clean install"
+	@echo "                  ex: make mvn flyway:info"
+	@echo ""
+	@echo "  Reference (displays commands to run manually)"
+	@echo "    maven     Maven build and run commands"
+	@echo "    flyway    Database migration commands"
+	@echo "    test      Test commands"
 
-## —— 🐳 Docker ———————————————————————————————————————————————
-build: ## Build Docker containers
-	@echo "🔨 Building containers..."
-	@$(DC) build --no-cache
+## —— App —————————————————————————————————————————————————————
 
-start: ## Start all containers in background
-	@echo "🚀 Starting containers..."
+run:
+	@$(MVN) spring-boot:run
+
+mvn:
+	@$(MVN) $(filter-out mvn, $(MAKECMDGOALS))
+
+%:
+	@:
+
+## —— Docker ——————————————————————————————————————————————————
+
+start:
 	@$(DC) up -d
-	@echo "✅ Containers started!"
 
-up: ## Build and start all containers
-	@echo "🚀 Building and starting containers..."
-	@$(DC) up --build
-
-stop: ## Stop all containers
-	@echo "⏸️  Stopping containers..."
+stop:
 	@$(DC) stop
 
-down: ## Stop and remove containers
-	@echo "🗑️  Removing containers..."
+down:
 	@$(DC) down
 
-restart: stop start ## Restart all containers
+fresh:
+	@$(DC) down -v
+	@$(DC) up -d
 
-ps: ## Show running containers
-	@$(DC) ps
-
-logs: ## Show app container logs (ctrl+c to exit)
-	@$(DC) logs -f app
-
-logs-postgres: ## Show PostgreSQL container logs
+logs:
 	@$(DC) logs -f postgres
 
-logs-redis: ## Show Redis container logs
-	@$(DC) logs -f redis
+## —— Reference ———————————————————————————————————————————————
 
-ssh: ## SSH into app container
-	@$(APP_IT) sh
+maven:
+	@echo "Maven commands (mvn):"
+	@echo ""
+	@echo "  mvn spring-boot:run                Run the application locally"
+	@echo "  mvn compile                        Compile source code"
+	@echo "  mvn clean package -DskipTests      Build the JAR without running tests"
+	@echo "  mvn clean                          Delete build artifacts (target/)"
+	@echo "  mvn dependency:resolve             Download all declared dependencies"
+	@echo "  mvn dependency:tree                Print the full dependency tree"
 
-ssh-postgres: ## SSH into PostgreSQL container
-	@$(EXEC_IT) postgres sh
+flyway:
+	@echo "Flyway commands (mvn flyway:<command>):"
+	@echo ""
+	@echo "  mvn flyway:info                    Show migration status (applied, pending)"
+	@echo "  mvn flyway:migrate                 Apply all pending migrations"
+	@echo "  mvn flyway:validate                Check that applied migrations match scripts on disk"
+	@echo "  mvn flyway:repair                  Repair the schema history after a failed migration"
+	@echo "  mvn flyway:clean                   Drop all database objects — destroys all data"
 
-ssh-redis: ## SSH into Redis container
-	@$(EXEC_IT) redis sh
+test:
+	@echo "Test commands (./mvnw):"
+	@echo ""
+	@echo "  mvn test                           Run all tests"
+	@echo "  mvn test -Dgroups=unit             Run only tests tagged @Tag(\"unit\")"
+	@echo "  mvn test -Dgroups=integration      Run only integration tests (requires Docker)"
+	@echo "  mvn test -Dtest=MyClassTest        Run a single test class"
+	@echo "  mvn test jacoco:report             Run tests and generate HTML coverage report"
+	@echo "                                        Output: target/site/jacoco/index.html"
 
-## —— ☕ Maven ————————————————————————————————————————————————
-install: ## Install Maven dependencies
-	@echo "📦 Installing dependencies..."
-	@$(MVN) dependency:resolve
-
-package: ## Build JAR (skip tests)
-	@echo "📦 Packaging application..."
-	@$(MVN) clean package -DskipTests
-
-compile: ## Compile source code
-	@echo "🔨 Compiling..."
-	@$(MVN) compile
-
-clean: ## Clean build artifacts
-	@echo "🧹 Cleaning..."
-	@$(MVN) clean
-
-dependency-tree: ## Show dependency tree
-	@$(MVN) dependency:tree
-
-dependency-updates: ## Check for dependency updates
-	@$(MVN) versions:display-dependency-updates
-
-## —— 🗄️  Database ————————————————————————————————————————————
-db-migrate: ## Run Flyway migrations
-	@echo "📊 Running migrations..."
-	@$(MVN) flyway:migrate
-
-db-info: ## Show Flyway migration status
-	@echo "📊 Migration info..."
-	@$(MVN) flyway:info
-
-db-validate: ## Validate Flyway migrations
-	@$(MVN) flyway:validate
-
-db-repair: ## Repair Flyway schema history
-	@echo "🔧 Repairing schema history..."
-	@$(MVN) flyway:repair
-
-db-clean: ## Clean database (CAUTION! drops all objects)
-	@echo "⚠️  Cleaning database..."
-	@$(MVN) flyway:clean
-
-db-reset: db-clean db-migrate ## Reset database (clean + migrate)
-
-## —— 🧪 Testing ——————————————————————————————————————————————
-test: ## Run all tests
-	@echo "🧪 Running tests..."
-	@$(MVN) test
-
-test-unit: ## Run unit tests only
-	@echo "🧪 Running unit tests..."
-	@$(MVN) test -Dgroups=unit
-
-test-integration: ## Run integration tests only
-	@echo "🧪 Running integration tests..."
-	@$(MVN) test -Dgroups=integration
-
-test-coverage: ## Run tests with coverage report
-	@echo "📊 Generating coverage report..."
-	@$(MVN) test jacoco:report
-	@echo "✅ Coverage report: target/site/jacoco/index.html"
-
-test-class: ## Run a specific test class (use: make test-class class=UserServiceTest)
-	@$(MVN) test -Dtest=$(class)
-
-## —— ✨ Code Quality —————————————————————————————————————————
-checkstyle: ## Run Checkstyle
-	@echo "🔍 Running Checkstyle..."
-	@$(MVN) checkstyle:check
-
-spotbugs: ## Run SpotBugs static analysis
-	@echo "🔬 Running SpotBugs..."
-	@$(MVN) spotbugs:check
-
-quality: checkstyle spotbugs test ## Run all quality checks
-
-## —— 🔴 Redis ————————————————————————————————————————————————
-redis-cli: ## Access Redis CLI
-	@$(EXEC_IT) redis redis-cli
-
-redis-flush: ## Flush all Redis data (CAUTION!)
-	@echo "⚠️  Flushing all Redis data..."
-	@$(EXEC) redis redis-cli FLUSHALL
-	@echo "✅ Redis flushed"
-
-redis-keys: ## Show all Redis keys
-	@$(EXEC) redis redis-cli KEYS "*"
-
-redis-monitor: ## Monitor Redis commands in real-time
-	@$(EXEC_IT) redis redis-cli MONITOR
-
-redis-ping: ## Test Redis connection
-	@$(EXEC) redis redis-cli PING
-
-redis-memory: ## Show Redis memory usage
-	@$(EXEC) redis redis-cli INFO memory | grep "used_memory_human"
-
-## —— 📮 Postman ——————————————————————————————————————————————
-postman-import: ## Import Postman collection + all environments
-	@echo "📮 Importing Postman collection and environments..."
-	@postman collection import postman/lumiris.postman_collection.json 2>/dev/null || \
-		echo "⚠️  Postman CLI not found. Import manually: postman/lumiris.postman_collection.json"
-	@for env in postman/lumiris.*.postman_environment.json; do \
-		postman environment import $$env 2>/dev/null || true; \
-	done
-	@echo "✅ Done. Or drag & drop the files into Postman."
-
-postman-login-dev: ## Quick login as admin and print token (dev env)
-	@echo "🔑 Logging in as admin (dev)..."
-	@curl -s -X POST http://localhost:8081/api/auth/login \
+postman:
+	@echo "Quick login as admin:"
+	@curl -s -X POST http://localhost:8080/api/auth/login \
 		-H "Content-Type: application/json" \
 		-d '{"email":"admin@lumiris.com","password":"admin123"}' | python3 -m json.tool
-
-## —— 🔑 Security —————————————————————————————————————————————
-audit: ## Check for security vulnerabilities in dependencies
-	@echo "🔐 Running security audit..."
-	@$(MVN) dependency-check:check
 
 ## —— ℹ️  Information ————————————————————————————————————————
 info: ## Show Java and Maven versions
 	@echo "📋 System Information:"
 	@java --version
 	@$(MVN) --version
-
-status: ## Show Docker and application status
-	@echo "📊 Docker Status:"
-	@$(DC) ps
-	@echo ""
-	@echo "🔴 Redis Status:"
-	@$(EXEC) redis redis-cli PING || echo "❌ Redis not responding"
-
-## —— 🚀 Quick Setup ——————————————————————————————————————————
-dev: ## Start all containers with hot reload (Docker dev profile)
-	@echo "🚀 Starting dev environment with hot reload..."
-	@$(DC) --profile dev up
-
-setup: ## Initial project setup
-	@echo "🚀 Setting up project..."
-	@make build
-	@make start
-	@echo "✅ Setup complete! App running on http://localhost:8080"
-	@echo "✅ pgAdmin running on http://localhost:5050"
-
-fresh: ## Fresh install (reset everything including volumes)
-	@echo "🔄 Fresh install..."
-	@$(DC) down -v
-	@make build
-	@make start
-	@echo "✅ Fresh install complete!"

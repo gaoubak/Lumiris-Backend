@@ -1,0 +1,46 @@
+package com.minoh.lumiris_backend.exception;
+
+import com.minoh.lumiris_backend.dto.out.ErrorResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    ErrorResponse handleNotFound(ResourceNotFoundException ex) {
+        return new ErrorResponse(404, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage));
+        return new ErrorResponse(400, "Validation failed", errors);
+    }
+
+    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    ErrorResponse handleUnauthorized(RuntimeException ex) {
+        return new ErrorResponse(401, "Invalid credentials");
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    ErrorResponse handleGeneric(Exception ex) {
+        return new ErrorResponse(500, "An unexpected error occurred");
+    }
+}
