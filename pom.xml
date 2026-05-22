@@ -20,7 +20,7 @@
 		<testcontainers.version>1.20.4</testcontainers.version>
 		<spring-cloud.version>2024.0.1</spring-cloud.version>
 		<jjwt.version>0.12.6</jjwt.version>
-		<minio.version>8.5.17</minio.version>
+		<minio.version>8.6.0</minio.version>
 	</properties>
 
 	<dependencies>
