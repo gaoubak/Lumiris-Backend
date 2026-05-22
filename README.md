@@ -150,7 +150,12 @@ make start
 
 This will start PostgreSQL and pgAdmin in Docker. Flyway migrations run automatically on first app startup.
 
-### Step 4: Verify Everything Works
+### Step 4: Start the API
+```bash
+make mvn clean install && make mvn spring-boot:run
+```
+
+### Step 5: Verify Everything Works
 
 | URL | Service |
 |-----|---------|
@@ -207,37 +212,53 @@ lumiris-backend/
 
 ---
 
-## 💻 Development Workflow
+## Development Workflow
 
-### Common Commands
+Docker commands (`make start`, `make stop`, etc.) s'exécutent directement. Les groupes de référence (`make maven`, `make flyway`, `make test`) affichent les commandes à taper. `make mvn <args>` exécute n'importe quelle commande Maven avec les variables d'environnement du `.env` chargées automatiquement.
 
-```bash
-make help               # Show all available commands
+### Docker Compose
 
-# Docker
-make start              # Start containers in background
-make up                 # Build and start containers
-make down               # Stop and remove containers
-make logs-postgres      # Follow PostgreSQL logs
-make ps                 # Show running containers
+| Command | Description |
+|---------|-------------|
+| `docker compose up -d` | Start containers in background |
+| `docker compose up --build` | Build images and start containers |
+| `docker compose stop` | Stop containers without removing them |
+| `docker compose down` | Stop and remove containers |
+| `docker compose down -v` | Remove containers and volumes (full reset) |
+| `docker compose ps` | Show running containers |
+| `docker compose logs -f postgres` | Follow PostgreSQL logs |
+| `docker compose exec postgres sh` | Open a shell inside the PostgreSQL container |
 
-# Database
-make db-info            # Show Flyway migration status
-make db-migrate         # Run pending migrations
-make db-validate        # Validate migrations
-make db-reset           # Reset database (clean + migrate)
+### Maven
 
-# Testing
-make test               # Run all tests
-make test-unit          # Run unit tests only
-make test-integration   # Run integration tests (Testcontainers)
-make test-coverage      # Run tests with HTML coverage report
+| Command | Description |
+|---------|-------------|
+| `make mvn spring-boot:run` | Run the application locally |
+| `make mvn compile` | Compile source code |
+| `make mvn clean package -DskipTests` | Build the JAR without running tests |
+| `make mvn clean` | Delete build artifacts (`target/`) |
+| `make mvn dependency:resolve` | Download all declared dependencies |
+| `make mvn dependency:tree` | Print the full dependency tree |
 
-# Build
-make compile            # Compile source code
-make package            # Build JAR (skip tests)
-make clean              # Clean build artifacts
-```
+### Flyway
+
+| Command | Description |
+|---------|-------------|
+| `make mvn flyway:info` | Show current migration status (applied, pending) |
+| `make mvn flyway:migrate` | Apply all pending migrations |
+| `make mvn flyway:validate` | Check that applied migrations match scripts on disk |
+| `make mvn flyway:repair` | Repair the schema history after a failed migration |
+| `make mvn flyway:clean` | Drop all database objects — destroys all data |
+
+### Tests
+
+| Command | Description |
+|---------|-------------|
+| `make mvn test` | Run all tests |
+| `make mvn test -Dgroups=unit` | Run only tests tagged `@Tag("unit")` |
+| `make mvn test -Dgroups=integration` | Run only integration tests (requires Docker) |
+| `make mvn test -Dtest=MyClassTest` | Run a single test class |
+| `make mvn test jacoco:report` | Run tests and generate HTML coverage report (`target/site/jacoco/index.html`) |
 
 ### Adding a New DPP Field (ESPR Compliance)
 
@@ -275,10 +296,10 @@ private BigDecimal repairabilityScore;
 ## 🧪 Testing
 
 ```bash
-make test               # Run all tests
-make test-unit          # Unit tests only
-make test-integration   # Integration tests (uses Testcontainers)
-make test-coverage      # HTML report → target/site/jacoco/index.html
+make mvn test                           # Run all tests
+make mvn test -Dgroups=unit             # Unit tests only
+make mvn test -Dgroups=integration      # Integration tests (uses Testcontainers)
+make mvn test jacoco:report             # HTML report → target/site/jacoco/index.html
 ```
 
 Integration tests use **Testcontainers** — a real PostgreSQL instance spins up automatically, no manual setup needed.
@@ -296,7 +317,7 @@ Integration tests use **Testcontainers** — a real PostgreSQL instance spins up
 
 1. **Create a feature branch**: `git checkout -b feature/your-feature`
 2. **Make your changes**
-3. **Run tests**: `make test`
+3. **Run tests**: `make mvn test`
 4. **Commit** following [Conventional Commits](https://www.conventionalcommits.org/):
    ```
    feat: add repairability score to product passport
@@ -313,10 +334,11 @@ Integration tests use **Testcontainers** — a real PostgreSQL instance spins up
 |------|---------|
 | Start containers | `make start` |
 | Stop everything | `make down` |
-| Run tests | `make test` |
+| Run the app | `make run` |
+| Run tests | `make mvn test` |
 | View API docs | `http://localhost:8080/swagger-ui/index.html` |
 | Open database UI | `http://localhost:5050` |
-| Reset database | `make db-reset` |
+| Reset database | `make mvn flyway:clean` then `make mvn flyway:migrate` |
 
 ---
 
